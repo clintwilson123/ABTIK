@@ -1,12 +1,8 @@
 import React, { useRef } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import Constants from 'expo-constants';
-import MapView, {
-  Marker,
-  Polyline,
-  PROVIDER_GOOGLE,
-  Region,
-} from 'react-native-maps';
+import type MapViewType from 'react-native-maps';
+import type { Region } from 'react-native-maps';
 
 import { DarkFallbackMap } from '@/components/maps/DarkFallbackMap';
 import { colors } from '@/theme/colors';
@@ -55,6 +51,24 @@ function readGoogleMapsApiKey(): string | null {
 
 const googleMapsApiKey = readGoogleMapsApiKey();
 
+type MapsModule = typeof import('react-native-maps');
+
+/**
+ * react-native-maps evaluates `requireNativeComponent('AIRMap')` at import
+ * time. If that native view is unavailable the eager import takes the whole
+ * expo-router route table down with it — a white screen before React ever
+ * mounts. The no-key demo path never renders the real map, so defer the
+ * require until we are actually about to use it.
+ */
+let mapsModule: MapsModule | null = null;
+function loadMaps(): MapsModule {
+  if (!mapsModule) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    mapsModule = require('react-native-maps') as MapsModule;
+  }
+  return mapsModule;
+}
+
 export function CampusMap({
   hubs,
   pickup,
@@ -65,7 +79,7 @@ export function CampusMap({
   initialRegion = DEFAULT_REGION,
   showsUserLocation = true,
 }: CampusMapProps) {
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<MapViewType>(null);
 
   // No SDK key configured (local dev / Expo Go demo): swap blank Google
   // tiles for the styled dark vector preview — same markers, same tap flow.
@@ -82,6 +96,8 @@ export function CampusMap({
       />
     );
   }
+
+  const { default: MapView, Marker, Polyline, PROVIDER_GOOGLE } = loadMaps();
 
   return (
     <View style={styles.wrap}>
